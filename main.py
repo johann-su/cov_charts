@@ -1,8 +1,8 @@
 import re
 import pandas as pd
+import geopandas as gpd
 import matplotlib.pyplot as plt
 from matplotlib import style 
-# import geoplot as gplt - installation not working properly
 import argparse
 from datetime import datetime, date
 from collections.abc import Iterable
@@ -38,7 +38,8 @@ demographics = pd.read_csv('./data/demographics_de.csv')
 def filter_time(df, timeframe):
     # filter dataset for entries in timeframe
     td = pd.Timedelta(timeframe)
-    return df[df['date'] >= datetime.now() - td]
+    tf = df[df['date'] >= datetime.now() - td]
+    return tf
     
 def filter_country(df, state=None, county=None):
     # for Germany
@@ -111,7 +112,13 @@ def plot(data, chart, timeframe, state=None, county=None, comparison=None):
                 elif chart == 'bar':
                     plt.bar(x, y, label=data_type)
                 elif chart == 'geo':
-                    raise Exception("Not Implemented")
+                    # load required shape files
+                    if state == None:
+                        geodf = gpd.read_file('./data/shapefiles_germany/vg2500_bld.shp')
+                    elif county == None:
+                        geodf = gpd.read_file('./data/shapefiles_germany/vg2500_krs.shp')
+
+                    geodf.plot()
 
                 # add data type to content
                 content = content + ' ' + data_type
@@ -123,11 +130,25 @@ def plot(data, chart, timeframe, state=None, county=None, comparison=None):
 
         content = ''
 
+        # creating plots for every data-instance
         for data_type in data:
             x, y = filter_data(zone, data_type)
 
-            plt.plot(x, y, label=data_type)
+            # choosing the type of chart
+            if chart == 'line':
+                plt.plot(x, y, label=data_type)
+            elif chart == 'bar':
+                plt.bar(x, y, label=data_type)
+            elif chart == 'geo':
+                # load required shape files
+                if state == None:
+                    geodf = gpd.read_file('./data/shapefiles_germany/vg2500_bld.shp')
+                elif county == None:
+                    geodf = gpd.read_file('./data/shapefiles_germany/vg2500_krs.shp')
 
+                geodf.plot(cmap='OrRd', column="GEN", edgecolor="black", legend=True)
+
+            # add data type to content
             content = content + ' ' + data_type
 
     # variable for the zone the chart looks at - for title
@@ -141,7 +162,8 @@ def plot(data, chart, timeframe, state=None, county=None, comparison=None):
     plt.title(f'{content} over the last {timeframe} in {place}')
 
     plt.style.use('seaborn-whitegrid')
-    plt.legend()
+    if chart != 'geo':
+        plt.legend()
     plt.savefig(f'./charts/{chart}_{place}_{datetime.now()}.png')
     plt.show()
 
