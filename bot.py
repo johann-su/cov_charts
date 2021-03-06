@@ -24,24 +24,21 @@ def button(update: Update, context: CallbackContext) -> None:
     update.callback_query.message.edit_reply_markup(
         reply_markup=InlineKeyboardMarkup([])
     )
+    # edit query message
+    update.callback_query.message.edit_text(
+        text=f'Hello {update.effective_user.first_name}, here is your {update.callback_query.data} chart'
+    )
     # send image
-    chart=Chart(data = 'cases', timeframe = '1W', chart = update.callback_query.data, state = 'Sachsen')
+    chart=Chart(data = 'cases', timeframe = '1W', c_type = update.callback_query.data, state = 'Sachsen')
     path = chart.plot()
-
-    bot.send_photo(chat_id, open(path,'rb'))
-    # update.callback_query.message.reply_dice(emoji=update.callback_query.data)
+    bot.send_photo(update.effective_chat.id, open(path,'rb'))
 
 # lets the user set default chart options
 def setup(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f'Hello {update.effective_user.first_name}')
     
 bot = Bot()
-updater = Updater(bot=bot)
-
-try:
-    chat_id = bot.get_updates()[-1].message.chat_id
-except IndexError:
-    chat_id = 0
+updater = Updater(bot=bot, use_context=True)
 
 updater.dispatcher.add_handler(CommandHandler('chart', chart))
 updater.dispatcher.add_handler(CommandHandler('setup', setup))

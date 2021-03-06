@@ -13,7 +13,7 @@ class Chart:
     # The timeframe for the chart ('1W', '1D')
     timeframe=''
     # The chart type to plot ('line', 'bar')
-    chart=''
+    c_type=''
     # The State to look at ('Sachsen')
     state=''
     # The county to look at ('SK Dresden')
@@ -22,6 +22,8 @@ class Chart:
     comparison=''
     # Show cases, deaths or Incidence ('cases', ['deaths', incidence'])
     data=''
+    # returns the path to the image with the chart
+    image=''
 
     # returns the place that the chart shows
     @property
@@ -38,22 +40,19 @@ class Chart:
         if isinstance(self.data, list):
             content=''
             for d in self.data:
-                content = content + ' ' + data_type
-
+                content = content + ', ' + data_type
             return content
         else:
-            return 
+            return self.data
 
-    # returns the path to the image with the chart
-    image=f'./charts/{chart}_{place}_{datetime.now()}.png'
-
-    def __init__(self, data, timeframe, chart, state=None, county=None, comparison=None):
+    def __init__(self, data, timeframe, c_type, state=None, county=None, comparison=None):
         self.timeframe = timeframe
-        self.chart = chart
+        self.c_type = c_type
         self.state = state
         self.county = county
         self.comparison = comparison
         self.data = data
+        self.image = f"./charts/{c_type}_{self.place}_{datetime.now()}.png"
 
     def __repr__(self):
         return f"{self.chart} of {self.place} in {timeframe}"
@@ -112,11 +111,11 @@ class Chart:
             x, y = self.prepare_data(df, data_type)
 
             # choosing the type of chart
-            if self.chart == 'line':
+            if self.c_type == 'line':
                 plt.plot(x, y, label=data_type)
-            elif self.chart == 'bar':
+            elif self.c_type == 'bar':
                 plt.bar(x, y, label=data_type)
-            elif self.chart == 'geo':
+            elif self.c_type == 'geo':
                 # load required shape files
                 if self.state == None:
                     geodf = gpd.read_file('./data/shapefiles_germany/vg2500_bld.shp')
@@ -131,6 +130,5 @@ class Chart:
 
         plt.style.use('seaborn-whitegrid')
         plt.savefig(self.image)
-        plt.show()
         # return the path to the image
         return self.image
