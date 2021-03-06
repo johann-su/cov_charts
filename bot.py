@@ -44,7 +44,8 @@ def chart_answer(update: Update, context: CallbackContext) -> None:
         chart=Chart(
             data = ['cases'], 
             timeframe = '3W', 
-            c_type = update.callback_query.data)
+            c_type = update.callback_query.data,
+            state = 'Sachsen')
 
     path = chart.plot()
     bot.send_photo(update.effective_chat.id, open(path,'rb'))

@@ -119,26 +119,34 @@ class Chart:
             elif self.c_type == 'bar':
                 ax.bar(x, y[data_type], label=data_type)
             elif self.c_type == 'geo':
+                tf = df[df['date'] >= df['date'].max()]
+
+                # drop unwanted data
+                df_prep = tf.drop(['age_group', 'gender'], axis=1)
+
                 # load required shape files
                 if self.state == None:
-                    df = pd.read_csv('./data/covid_de.csv')
-                    df['date'] = pd.to_datetime(df['date'])
-
                     geodf = gpd.read_file('./data/shapefiles_germany/shapefile_state')
 
-                    tf = df[df['date'] >= df['date'].max()]
-
-                    # # drop unwanted data
-                    df_prep = tf.drop(['age_group', 'gender', 'county'], axis=1)
+                    df_prep = df_prep.drop('county', axis=1)
 
                     aggregation_functions = {'state': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
                     tf = df_prep.groupby(df_prep['state']).aggregate(aggregation_functions)
 
-                    geodf.sort_values(by='GEN')
-                    geodf['cases'] = tf['cases']
-                    geodf['cases'] = tf['deaths']
+                    geodf['cases'] = list(tf['cases'])
+                    geodf['deaths'] = list(tf['deaths'])
                 elif self.county == None:
                     geodf = gpd.read_file('./data/shapefiles_germany/shapefile_county')
+
+                    # filter for state
+                    counties = df.loc[lambda df: df['state'] == self.state]
+                    geodf = geodf.loc[geodf['GEN'].isin(counties['county'].unique())].reset_index(drop=True)
+
+                    aggregation_functions = {'county': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
+                    tf = counties.groupby(counties['county']).aggregate(aggregation_functions)
+
+                    geodf['cases'] = list(tf['cases'])
+                    geodf['deaths'] = list(tf['deaths'])
 
                 fig, ax = plt.subplots(1, 1)
                 divider = make_axes_locatable(ax)
@@ -147,10 +155,11 @@ class Chart:
                 # plot the shapefile
                 geodf.plot(cmap='OrRd', column=data_type, ax=ax, cax=cax, legend=True)
 
-            plt.title(f'{self.content} over the last {self.timeframe} in {self.place}')
-
         plt.tight_layout()
-        plt.legend(loc=0, frameon=False)
+        if self.c_type != 'geo':
+            # TODO: Fix title bug when chart type is geo
+            plt.title(f'{self.content} over the last {self.timeframe} in {self.place}')
+            plt.legend(loc=0, frameon=False)
         plt.savefig(self.image)
         # return the path to the image
         return self.image
