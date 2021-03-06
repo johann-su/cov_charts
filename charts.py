@@ -2,7 +2,9 @@ import re
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from matplotlib import style 
+plt.switch_backend('Agg')
+plt.style.use('seaborn-whitegrid')
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import argparse
 from datetime import datetime, date
 from collections.abc import Iterable
@@ -40,7 +42,7 @@ class Chart:
         if isinstance(self.data, list):
             content=''
             for d in self.data:
-                content = content + ', ' + data_type
+                content = content + ' ' + d
             return content
         else:
             return self.data
@@ -100,35 +102,55 @@ class Chart:
         df_prep = df.drop(['age_group', 'gender'], axis=1)
         tf = self.filter_time(df_prep)
         zone = self.filter_location(tf)
-        # TODO: test for multiple data
         return (zone.index, zone[self.data])
 
     def plot(self):
         df = pd.read_csv('./data/covid_de.csv')
         df['date'] = pd.to_datetime(df['date'])
+        
         # creating plots for every data-instance
+        fig, ax = plt.subplots()
         for data_type in self.data:
             x, y = self.prepare_data(df, data_type)
-
+            
             # choosing the type of chart
             if self.c_type == 'line':
-                plt.plot(x, y, label=data_type)
+                ax.plot(x, y[data_type], label=data_type)
             elif self.c_type == 'bar':
-                plt.bar(x, y, label=data_type)
+                ax.bar(x, y[data_type], label=data_type)
             elif self.c_type == 'geo':
                 # load required shape files
                 if self.state == None:
-                    geodf = gpd.read_file('./data/shapefiles_germany/vg2500_bld.shp')
+                    df = pd.read_csv('./data/covid_de.csv')
+                    df['date'] = pd.to_datetime(df['date'])
+
+                    geodf = gpd.read_file('./data/shapefiles_germany/shapefile_state')
+
+                    tf = df[df['date'] >= df['date'].max()]
+
+                    # # drop unwanted data
+                    df_prep = tf.drop(['age_group', 'gender', 'county'], axis=1)
+
+                    aggregation_functions = {'state': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
+                    tf = df_prep.groupby(df_prep['state']).aggregate(aggregation_functions)
+
+                    geodf.sort_values(by='GEN')
+                    geodf['cases'] = tf['cases']
+                    geodf['cases'] = tf['deaths']
                 elif self.county == None:
-                    geodf = gpd.read_file('./data/shapefiles_germany/vg2500_krs.shp')
+                    geodf = gpd.read_file('./data/shapefiles_germany/shapefile_county')
+
+                fig, ax = plt.subplots(1, 1)
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="5%", pad=0.1)
 
                 # plot the shapefile
-                # TODO: Add color for states, counties
-                geodf.plot()
+                geodf.plot(cmap='OrRd', column=data_type, ax=ax, cax=cax, legend=True)
 
             plt.title(f'{self.content} over the last {self.timeframe} in {self.place}')
 
-        plt.style.use('seaborn-whitegrid')
+        plt.tight_layout()
+        plt.legend(loc=0, frameon=False)
         plt.savefig(self.image)
         # return the path to the image
         return self.image

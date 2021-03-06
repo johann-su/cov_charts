@@ -5,3 +5,4 @@ geopandas
 dscartes
 GoogleNews
 python-telegram-bot
+python-dotenv
