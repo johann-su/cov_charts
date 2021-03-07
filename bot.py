@@ -6,6 +6,7 @@ from charts import Chart
 from dotenv import load_dotenv
 load_dotenv()
 import pandas as pd
+import datetime
 
 # asks the user what chart to show
 def chart(update: Update, context: CallbackContext) -> None:
@@ -64,9 +65,41 @@ def status(update: Update, context: CallbackContext) -> None:
     
     update.message.reply_text(f"New infections in Germany: {germany['cases'].values[0]}\nNew infections in Saxony: {state.loc[state.index=='Sachsen']['cases'].values[0]}") 
 
+def report(context):
+    df = pd.read_csv('./data/covid_de.csv')
+
+    tf = df[df['date'] >= df['date'].max()]
+
+    aggregation_functions = {'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
+    aggregation_functions_state = {'state': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
+    germany =  tf.groupby(tf['date']).aggregate(aggregation_functions)
+    state =  tf.groupby(tf['state']).aggregate(aggregation_functions_state)
+
+    chart=Chart(
+            data = ['cases'], 
+            timeframe = '3W', 
+            c_type = update.callback_query.data,
+            state = 'Sachsen')
+
+    path = chart.plot()
+    
+    context.bot.send_message(chat_id=context.job.context, text=f"New infections in Germany: {germany['cases'].values[0]}\nNew infections in Saxony: {state.loc[state.index=='Sachsen']['cases'].values[0]}")
+
+    context.bot.send_photo(context.job.context, open(path,'rb'))
+
+def start(update, context):
+    context.bot.send_message(chat_id=update.message.chat_id,
+                      text='Automatic updates have been enabled.')
+
+    context.job_queue.run_daily(report, time=datetime.time(15, 0, 0), context=update.message.chat_id, name='update')
+
+def stop(update, context):
+    context.bot.send_message(chat_id=update.message.chat_id,
+                      text='Automatic updates have been disabled.')
+    context.job_queue.stop()
+
 # lets the user set default chart options
 def setup(update: Update, context: CallbackContext) -> None:
-    print()
     reply_list = [f'Hello {update.effective_user.first_name}']
     if context.user_data:
         reply_list.append('Your current config is:')
@@ -101,6 +134,8 @@ def news(update: Update, context: CallbackContext) -> None:
 bot = Bot(os.environ['TOKEN'])
 updater = Updater(bot=bot, use_context=True, persistence=PicklePersistence(filename='bot_data'))
 
+updater.dispatcher.add_handler(CommandHandler('start', start, pass_job_queue=True))
+updater.dispatcher.add_handler(CommandHandler('start', stop, pass_job_queue=True))
 updater.dispatcher.add_handler(CommandHandler('chart', chart))
 updater.dispatcher.add_handler(CallbackQueryHandler(chart_answer))
 updater.dispatcher.add_handler(CommandHandler('status', status))
