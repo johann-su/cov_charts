@@ -92,7 +92,7 @@ class Chart:
             aggregation_functions = {'state': 'first', 'county': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
 
             tf = df.loc[lambda df: df['state'] == self.state]
-            tf = tf.loc[lambda df: df['county'] == self.county]
+            tf = tf.loc[lambda tf: tf['county'] == self.county]
 
             tf = tf.groupby(tf['date']).aggregate(aggregation_functions)
             return tf
@@ -149,16 +149,18 @@ class Chart:
                     geodf['deaths'] = list(tf['deaths'])
 
                 fig, ax = plt.subplots(1, 1)
-                divider = make_axes_locatable(ax)
-                cax = divider.append_axes("right", size="5%", pad=0.1)
 
                 # plot the shapefile
-                geodf.plot(cmap='OrRd', column=data_type, ax=ax, cax=cax, legend=True)
+                geodf.plot(cmap='OrRd', column=data_type, ax=ax, legend=True)
 
+                break
+
+        if self.c_type != 'geo':
+            plt.title(f'{self.content} over the last {self.timeframe} in {self.place}')
+        else:
+            plt.title(f'{self.content} in {self.place}')
         plt.tight_layout()
         if self.c_type != 'geo':
-            # TODO: Fix title bug when chart type is geo
-            plt.title(f'{self.content} over the last {self.timeframe} in {self.place}')
             plt.legend(loc=0, frameon=False)
         plt.savefig(self.image)
         # return the path to the image
