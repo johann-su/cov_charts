@@ -1,8 +1,12 @@
+import logging
 import os
-import pandas as pd
+
 import requests
 import json
+import pandas as pd
 from datetime import datetime
+
+LOGGER = logging.getLogger(__name__)
 
 # load current dataframe
 df = pd.read_csv('./data/covid_de.csv')

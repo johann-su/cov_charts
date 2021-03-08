@@ -1,5 +1,5 @@
 FROM python:3.8
-WORKDIR /telegram_bot
+WORKDIR /corona-charts
 COPY . .
 RUN pip install -r requirements.txt
-CMD ["python", "bot.py"]
+CMD ["python", "."]

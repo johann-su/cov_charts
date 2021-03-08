@@ -1,5 +1,10 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
+import re
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
+from telegram.ext import CallbackContext
 from covid_charts.bot.state import States
+
+from covid_charts.vars import choices_state, choices_county
 
 def chart_type(update: Update, context: CallbackContext) -> str:
     reply_buttons = InlineKeyboardMarkup([
@@ -25,27 +30,53 @@ def timeframe(update: Update, context: CallbackContext) -> str:
     return State.STATE
 
 def state(update: Update, context: CallbackContext) -> str:
+    regex = r'[0-9][0-9]?(D|W|M|Y)'
     # set data from prev step
-    if
-    context.user_data['timeframe'] = update.message.text
+    if re.match(regex, update.message.text):
+        context.user_data['tf'] = update.message.text
 
-    update.message.reply_text(f"Now tell me in which state you live. I won't tell anyone. Promise :) \n If you want to look at the whole country just type Germany.",
+        update.message.reply_text(f"Now tell me in which state you live. I won't tell anyone. Promise :) \n If you want to look at the whole country just type Germany.",
                               reply_markup=ForceReply())
-    return State.COUNTY
+        return State.COUNTY
+    else:
+        update.message.reply_text(f"Nah you cant fool me by sending your timeframe in the wron format. Try again!",
+                              reply_markup=ForceReply())
+        return State.TIMEFRAME
 
 def county(update: Update, context: CallbackContext) -> str:
-    update.message.reply_text(f"If you want to focus on a county you can do so. Just type in your county in the following format: SK Dresden, LK Bautzen etc.",
-                              reply_markup=ForceReply())
-    return State.DATA
+    if update.message.text in choices_state:
+        context.user_data['state'] = update.message.text
+
+        update.message.reply_text(f"If you want to focus on a county you can do so. Just type in your county in the following format: SK Dresden, LK Bautzen etc.",
+                                reply_markup=ForceReply())
+        return State.DATA
+    else:
+        update.message.reply_text(f"The state you said you live in dosn't exist anywhere in Germany. You can't trick me.\nTry again!",
+                                reply_markup=ForceReply())
+        return State.STATE
 
 def data(update: Update, context: CallbackContext) -> str:
-    update.message.reply_text(f"Last Question: What data do you want to see? I can offer cases, deaths or the seven day incidence. If you want to see multiple data points you can seperate them with a ','",
-                              reply_markup=ForceReply())
-    return State.FINISHED
+    if update.message.text in choices_county:
+        context.user_data['county'] = update.message.text
+
+        update.message.reply_text(f"Last Question: What data do you want to see? I can offer cases, deaths or the seven day incidence. If you want to see multiple data points you can seperate them with a ','",
+                                reply_markup=ForceReply())
+        return State.FINISHED
+    else:
+        update.message.reply_text(f"The county you told me dosn't exist anywhere in Germany. You can't trick me.\nTry again!",
+                                reply_markup=ForceReply())
+        return State.COUNTY
 
 def finished(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(f"Your through. I will remember your configuration but you can change it whenever you want.")
-    return State.CHART_TYPE
+    regex=r'(cases|deaths|incidence),?(cases|deaths|incidence)?,?(cases|deaths|incidence)?'
+    if re.match(regex, update.message.text):
+        context.user_data['data'] = update.message.text
+
+        update.message.reply_text(f"Thats all. I will remember your configuration but you can change it whenever you want.")
+        return State.CHART_TYPE
+    else:
+        update.message.reply_text(f"The data you told me was not in a correct shape or contained unknown datatypes. Don't try to mess with me ok?\nTry again!")
+        return State.CHART_TYPE
 
 def cancel_setup(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("You canceled the setup :(")

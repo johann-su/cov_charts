@@ -1,6 +1,9 @@
+import logging
+
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
+
+LOGGER = logging.getLogger(__name__)
 
 df = pd.read_csv('./data/covid_de.csv')
 df['date'] = pd.to_datetime(df['date'])
