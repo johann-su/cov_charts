@@ -1,41 +1,66 @@
+import os
 import pandas as pd # TODO: Remove when status module is implemented
+import random
 
-from telegram import Chat, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Chat, Update, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler, CallbackContext
 
 from covid_charts.bot.state import States
-from covid_charts.bot import setup
+from covid_charts.bot import setup_conv
 from covid_charts.bot import bot
-
 from covid_charts.charts import Chart
+
+import tweepy
 
 setup_handler = ConversationHandler(
     name='setup_handler',
-    entry_points=[CommandHandler('setup', setup.chart_type)],
+    entry_points=[CommandHandler('setup', setup_conv.chart_type)],
     states={
-        States.CHART_TYPE: [CallbackQueryHandler(setup.chart_type)],
-        States.TIMEFRAME: [MessageHandler(Filters.text, setup.timeframe)],
-        States.STATE: [MessageHandler(Filters.text, setup.state)],
-        States.COUNTY: [MessageHandler(Filters.text, setup.county)],
-        States.DATA: [MessageHandler(Filters.text, setup.data)],
-        States.FINISHED: [MessageHandler(Filters.text, setup.finished)],
+        States.CHART_TYPE: [MessageHandler(Filters.text, setup_conv.chart_type)],
+        States.TF: [MessageHandler(Filters.text, setup_conv.timeframe)],
+        States.STATE: [MessageHandler(Filters.text, setup_conv.state)],
+        States.COUNTY: [
+            MessageHandler(Filters.text, setup_conv.county),
+            CommandHandler('skip', setup_conv.skip_county),
+        ],
+        States.DATA: [MessageHandler(Filters.text, setup_conv.data)],
+        States.FINISHED: [MessageHandler(Filters.text, setup_conv.finished)],
     },
-    persistent=True,
-    fallbacks=[CommandHandler('cancel', setup.cancel_setup),
-            CommandHandler('start', setup.chart_type)]
+    fallbacks=[CommandHandler('cancel', setup_conv.cancel_setup),
+            CommandHandler('start', setup_conv.chart_type)],
+    persistent=False,
+    per_message=False,
+    per_user=True,
+    conversation_timeout=120.0,
+
 )
 
 # asks the user what chart to show
 def chart(update: Update, context: CallbackContext) -> None:
-    reply_buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("line", callback_data='line')],
-        [InlineKeyboardButton("bar", callback_data='bar')],
-        [InlineKeyboardButton("geo", callback_data='geo')],
-    ])
-    update.message.reply_text(
-        f'Hello {update.effective_user.first_name} 👋, please choose a chart:',
-        reply_markup=reply_buttons
-    )
+    if context.user_data:
+        update.message.reply_text(
+            text=f"Hello {update.effective_user.first_name} 👋, here is your {context.user_data['chart']} chart"
+        )
+
+        chart=Chart(
+            data = [context.user_data['data']], 
+            timeframe = context.user_data['tf'], 
+            c_type = context.user_data['chart'], 
+            state = context.user_data['state'], 
+            county = context.user_data['county'])
+
+        path = chart.plot()
+        context.bot.send_photo(update.effective_chat.id, open(path,'rb'))
+    else:
+        reply_buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("line", callback_data='line')],
+            [InlineKeyboardButton("bar", callback_data='bar')],
+            [InlineKeyboardButton("geo", callback_data='geo')],
+        ])
+        update.message.reply_text(
+            f'Hello {update.effective_user.first_name} 👋, please choose a chart:',
+            reply_markup=reply_buttons
+        )
 
 # updates the question to the user and sends image
 def chart_answer(update: Update, context: CallbackContext) -> None:
@@ -49,20 +74,12 @@ def chart_answer(update: Update, context: CallbackContext) -> None:
     update.callback_query.message.edit_text(
         text=f'Hello {update.effective_user.first_name} 👋, here is your {update.callback_query.data} chart'
     )
-    # configure chart
-    if context.user_data:
-        chart=Chart(
-            data = context.user_data['data'], 
-            timeframe = context.user_data['tf'], 
-            c_type = context.user_data['chart'], 
-            state = context.user_data['state'], 
-            county = context.user_data['county'])
-    else:
-        chart=Chart(
-            data = ['cases'], 
-            timeframe = '3W', 
-            c_type = update.callback_query.data,
-            state = 'Sachsen')
+
+    chart=Chart(
+        data = ['cases'], 
+        timeframe = '3W', 
+        c_type = update.callback_query.data,
+        state = 'Sachsen')
     
     path = chart.plot()
     context.bot.send_photo(update.effective_chat.id, open(path,'rb'))
@@ -82,8 +99,16 @@ def status(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f"New infections in Germany: {germany['cases'].values[0]}\nNew infections in Saxony: {state.loc[state.index=='Sachsen']['cases'].values[0]}") 
 
 def news(update: Update, context: CallbackContext) -> None:
-    # TODO: Implement
-    update.message.reply_text('There are currently no news to show')
+    auth = tweepy.OAuthHandler(os.environ['TWITTER_KEY'], os.environ['TWITTER_SECRET'])
+    auth.set_access_token(os.environ['TWITTER_AT'], os.environ['TWITTER_ATS'])
+
+    api = tweepy.API(auth)
+
+    public_tweets = api.user_timeline('@rki_de', count=10)
+
+    id = random.randint(0, 10)
+
+    update.message.reply_text(f'Twitter sagt:\n{public_tweets[id].text}\n\nhttps://twitter.com/{public_tweets[id].user.screen_name}/status/{public_tweets[id].id}')
 
 def start(update, context):
     context.bot.send_message(chat_id=update.message.chat_id,
@@ -100,6 +125,7 @@ def sources(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f'My data comes from the RKI and is Updated daily.\nA great overview of this data can be found here: https://npgeo-corona-npgeo-de.hub.arcgis.com\n\nThis is the link to the dataset: https://npgeo-corona-npgeo-de.hub.arcgis.com/datasets/23b1ccb051f543a5b526021275c1c6e5_0')
 
 handlers = [
+    setup_handler,
     CommandHandler('start', start, pass_job_queue=True),
     CommandHandler('stop', stop, pass_job_queue=True),
     CommandHandler('chart', chart),
@@ -107,5 +133,4 @@ handlers = [
     CommandHandler('status', status),
     CommandHandler('news', news),
     CommandHandler('sources', sources),
-    setup_handler
 ]

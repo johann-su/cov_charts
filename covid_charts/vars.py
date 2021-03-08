@@ -18,7 +18,7 @@ choices_state=[
     'Thueringen'
 ]
 choices_county=[
-    '',
+    None,
     'LK Alb-Donau-Kreis',
     'LK Biberach',
     'LK Boeblingen','LK Bodenseekreis',
