@@ -1,0 +1,7 @@
+class States:
+    CHART_TYPE = 'CHART_TYPE'
+    TIMEFRAME = 'TIMEFRAME'
+    STATE = 'STATE'
+    COUNTY = 'COUNTY'
+    DATA = 'DATA'
+    FINISHED = 'FINISHED'
