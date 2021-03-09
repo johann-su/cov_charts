@@ -10,7 +10,7 @@ The data used for this bot comes from the [Robert Koch Institute](https://www.rk
 
 ## Setup
 **Step 1:** <br>
-create a .env file and enter the following tokens: <br>
+create a `.env` file and enter the following tokens: <br>
 `TELEGRAM_TOKEN` (Telegram api key - can be obtained from botfather in telegram)<br>
 `TWITTER_KEY` (twitter api key - can be obtained [here](https://developer.twitter.com/en/products/twitter-api)) <br>
 `TWITTER_SECRET` (twitter api secret) <br>
