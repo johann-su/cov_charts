@@ -1,15 +1,15 @@
-import re
+import logging
+
 import pandas as pd
 import geopandas as gpd
+
 import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
 plt.style.use('seaborn-whitegrid')
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import argparse
-from datetime import datetime, date
-from collections.abc import Iterable
-from vars import choices_state, choices_county
-import types
+
+from datetime import datetime
+
+LOGGER = logging.getLogger(__name__)
 
 class Chart:
     # The timeframe for the chart ('1W', '1D')

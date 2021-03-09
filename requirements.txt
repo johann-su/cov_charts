@@ -2,8 +2,12 @@ numpy
 pandas
 matplotlib
 geopandas
-dscartes
-GoogleNews
+fiona
+pyproj
+rtree
+shapely
+descartes
 python-telegram-bot
 python-dotenv
 tweepy
+python-crontab

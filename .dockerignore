@@ -1,0 +1,5 @@
+env
+.env
+charts/*
+bot_data
+__pychache__
