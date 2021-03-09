@@ -17,6 +17,6 @@ create a `.env` file and enter the following tokens: <br>
 `TWITTER_AT` (twitter authentication token) <br>
 `TWITTER_ATS` (twitter authentication token secret) <br>
 
-**Step 2:**
+**Step 2:** <br>
 run `docker build -t corona-charts .` <br>
 `docker run --env-file .env -d corona-charts`
