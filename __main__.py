@@ -9,11 +9,11 @@ from covid_charts import collect_data
 from covid_charts.bot.handlers import handlers
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s\n', level=logging.INFO, filename='./logs/logFile.log')
 
 if __name__ == '__main__':
-    token = os.environ['TELEGRAM_TOKEN']
+    token = os.getenv('TELEGRAM_TOKEN')
     bot.run(token=token, handlers=handlers)
     schedule.every().day.at("00:00").do(collect_data.collect())

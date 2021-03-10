@@ -99,8 +99,8 @@ def status(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f"New infections in Germany: {germany['cases'].values[0]}\nNew infections in Saxony: {state.loc[state.index=='Sachsen']['cases'].values[0]}") 
 
 def news(update: Update, context: CallbackContext) -> None:
-    auth = tweepy.OAuthHandler(os.environ['TWITTER_KEY'], os.environ['TWITTER_SECRET'])
-    auth.set_access_token(os.environ['TWITTER_AT'], os.environ['TWITTER_ATS'])
+    auth = tweepy.OAuthHandler(os.getenv('TWITTER_KEY'), os.getenv('TWITTER_SECRET'))
+    auth.set_access_token(os.getenv('TWITTER_AT'), os.getenv('TWITTER_ATS'))
 
     api = tweepy.API(auth)
 
