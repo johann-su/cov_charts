@@ -1,9 +1,11 @@
 import logging
 import os
 import atexit
+import schedule
+import time
 
 from covid_charts.bot import bot
-from covid_charts import cronjobs
+from covid_charts import collect_data
 from covid_charts.bot.handlers import handlers
 
 from dotenv import load_dotenv
@@ -14,5 +16,4 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 if __name__ == '__main__':
     token = os.environ['TELEGRAM_TOKEN']
     bot.run(token=token, handlers=handlers)
-    cronjobs.start()
-    atexit.register(cronjobs.stop())
+    schedule.every().day.at("00:00").do(collect_data.collect())

@@ -1,7 +1,7 @@
 FROM python:3.8
 
 RUN apt-get update
-RUN apt-get install gdal-bin libgdal-dev libatlas-base-dev cmake make cron -y
+RUN apt-get install gdal-bin libgdal-dev libatlas-base-dev cmake make -y
 
 WORKDIR /corona-charts
 
