@@ -26,6 +26,8 @@ pip3 install virtualenv
 python3 -m venv env
 source env/bin/activate
 
+cd ./cov_charts
+
 pip install -r requirements.txt
 
-touch .env
+# touch .env
