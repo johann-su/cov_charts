@@ -40,7 +40,7 @@ def state(update: Update, context: CallbackContext) -> str:
         update.message.reply_text(f"Now tell me in which state you live. I won't tell anyone. Promise :) \n If you want to look at the whole country just type Germany.")
         return States.COUNTY
     else:
-        update.message.reply_text(f"Nah you cant fool me by sending your timeframe in the wron format. Try again!")
+        update.message.reply_text(f"Nah you cant fool me by sending your timeframe in the wrong format. Try again!")
         return States.TIMEFRAME
 
 def county(update: Update, context: CallbackContext) -> str:
@@ -63,7 +63,7 @@ def data(update: Update, context: CallbackContext) -> str:
         else:
             context.user_data['county'] = None
 
-        update.message.reply_text(f"Last Question: What data do you want to see? I can offer cases, deaths or the seven day incidence. If you want to see multiple data points you can seperate them with a ','")
+        update.message.reply_text(f"Last Question: What data do you want to see? I can offer **cases**, **deaths** or the seven day **incidence**. If you want to see multiple data points you can seperate them with a ','")
         return States.FINISHED
     else:
         update.message.reply_text(f"The county you told me dosn't exist anywhere in Germany. You can't trick me.\nTry again!")
