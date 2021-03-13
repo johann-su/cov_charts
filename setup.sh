@@ -1,12 +1,12 @@
-sudo apt-get update
+# sudo apt-get update
 sudo apt-get install gdal-bin libgdal-dev libatlas-base-dev cmake make -y
 
 sudo apt-get install sqlite3
 mkdir ../tmp
 cd ../tmp
-wget https://download.osgeo.org/proj/proj-6.3.2.tar.gz
-tar xvf proj-6.3.2.tar.gz
-cd proj-6.3.2
+wget https://download.osgeo.org/proj/proj-8.0.0.tar.gz
+tar xvf proj-8.0.0.tar.gz
+cd proj-8.0.0
 ./configure
 make
 sudo make install
@@ -22,7 +22,7 @@ make
 sudo make install
 sudo ldconfig
 
-pip3 install venv
+pip3 install virtualenv
 python3 -m venv env
 source env/bin/activate
 
