@@ -114,7 +114,7 @@ def start(update, context):
     context.bot.send_message(chat_id=update.message.chat_id,
                     text='Automatic updates have been enabled.')
 
-    context.job_queue.run_daily(report, time=datetime.time(15, 0, 0), context=update.message.chat_id, name='update')
+    context.job_queue.run_daily(status, time=datetime.time(15, 0, 0), context=update.message.chat_id, name='update')
 
 def stop(update, context):
     context.bot.send_message(chat_id=update.message.chat_id,
