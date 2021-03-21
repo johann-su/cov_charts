@@ -9,6 +9,10 @@ plt.style.use('seaborn-whitegrid')
 
 from datetime import datetime
 
+import sqlite3 as sql
+from database import sql_lite
+import time
+
 LOGGER = logging.getLogger(__name__)
 
 class Chart:
@@ -59,55 +63,24 @@ class Chart:
     def __repr__(self):
         return f"{self.chart} of {self.place} in {timeframe}"
 
-    # filter data for values in timeframe
-    def filter_time(self, df):
-        td = pd.Timedelta(self.timeframe)
-        tf = df[df['date'] >= datetime.now() - td]
-        return tf
+    def get_data(self):
+        region = self.state if self.county == None else self.county
 
-    # filter data for values in location
-    def filter_location(self, df):
-        # for Germany
-        if self.state == None:
-            tf = df.drop(['state', 'county'], axis=1)
+        with sql.connect('./database/covid.db') as con:
+            c = con.cursor()
+            c.execute("SELECT * FROM covid_germany WHERE date >= :timeframe AND state=:region", {
+                'region': region,
+                'timeframe': time.mktime((datetime.now() - pd.Timedelta(self.timeframe)).timetuple()),
+                'data': self.data[0]
+            })
 
-            aggregation_functions = {'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
+            # OR county=:region
 
-            tf = tf.groupby(tf['date']).aggregate(aggregation_functions)
-            return tf
-
-        # for a state
-        elif self.county == None:
-            tf = df.drop(['county'], axis=1)
-
-            aggregation_functions = {'state': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
-
-            tf = tf.loc[lambda df: df['state'] == self.state]
-
-            tf = tf.groupby(tf['date']).aggregate(aggregation_functions)
-            return tf
-
-        # for a county
-        else:
-            aggregation_functions = {'state': 'first', 'county': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
-
-            tf = df.loc[lambda df: df['state'] == self.state]
-            tf = tf.loc[lambda tf: tf['county'] == self.county]
-
-            tf = tf.groupby(tf['date']).aggregate(aggregation_functions)
-            return tf
-
-    def prepare_data(self, df, data):
-        # drop unwanted data
-        df_prep = df.drop(['age_group', 'gender'], axis=1)
-        tf = self.filter_time(df_prep)
-        zone = self.filter_location(tf)
-        return (zone.index, zone[self.data])
+            print(c.fetchall())
 
     def plot(self):
-        df = pd.read_csv('./data/covid_de.csv')
-        df['date'] = pd.to_datetime(df['date'])
-        
+        self.get_data()
+
         # creating plots for every data-instance
         fig, ax = plt.subplots()
         for data_type in self.data:
