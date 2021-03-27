@@ -10,8 +10,10 @@ plt.style.use('seaborn-whitegrid')
 from datetime import datetime
 
 import sqlite3 as sql
-from database import sql_lite
+from data import sql_lite
 import time
+
+from covid_charts import vars
 
 LOGGER = logging.getLogger(__name__)
 
@@ -20,26 +22,14 @@ class Chart:
     timeframe=''
     # The chart type to plot ('line', 'bar')
     c_type=''
-    # The State to look at ('Sachsen')
-    state=''
-    # The county to look at ('SK Dresden')
-    county=''
+    # The Region to look at ('Sachsen')
+    region=''
     # What States or Counties to compare between (['Sachsen.SK Dresden', 'Bayern'])
     comparison=''
     # Show cases, deaths or Incidence ('cases', ['deaths', incidence'])
     data=''
     # returns the path to the image with the chart
     image=''
-
-    # returns the place that the chart shows
-    @property
-    def place(self):
-        if self.state == None:
-            return 'Germany'
-        elif self.county == None:
-            return self.state
-        else:
-            return self.county
 
     @property
     def content(self):
@@ -51,75 +41,77 @@ class Chart:
         else:
             return self.data
 
-    def __init__(self, data, timeframe, c_type, state=None, county=None, comparison=None):
+    def __init__(self, data, timeframe, c_type, region='Sachsen', comparison=None):
         self.timeframe = timeframe
         self.c_type = c_type
-        self.state = state
-        self.county = county
+        self.region = region
         self.comparison = comparison
         self.data = data
-        self.image = f"./charts/{c_type}_{self.place}_{datetime.now()}.png"
+        self.image = f"./charts/{c_type}_{self.region}_{datetime.now()}.png"
 
     def __repr__(self):
-        return f"{self.chart} of {self.place} in {timeframe}"
+        return f"{self.chart} of {self.region} in {timeframe}"
 
     def get_data(self):
-        region = self.state if self.county == None else self.county
-
-        with sql.connect('./database/covid.db') as con:
+        with sql.connect('./data/covid.db') as con:
             c = con.cursor()
-            c.execute("SELECT * FROM covid_germany WHERE date >= :timeframe AND state=:region", {
-                'region': region,
+            c.execute("SELECT cases, date FROM covid_germany WHERE date >= :timeframe AND region=:region ORDER BY date DESC", {
+                'region': self.region if self.region == None else self.region,
                 'timeframe': time.mktime((datetime.now() - pd.Timedelta(self.timeframe)).timetuple()),
                 'data': self.data[0]
             })
+            data = c.fetchall()
 
-            # OR county=:region
-
-            print(c.fetchall())
+        x = [datetime.fromtimestamp(i[1]) for i in data]
+        y = [i[0] for i in data]
+       
+        return (x, y)
 
     def plot(self):
-        self.get_data()
-
         # creating plots for every data-instance
         fig, ax = plt.subplots()
         for data_type in self.data:
-            x, y = self.prepare_data(df, data_type)
-            
+            x, y = self.get_data()
+
             # choosing the type of chart
             if self.c_type == 'line':
-                ax.plot(x, y[data_type], label=data_type)
+                ax.plot(x, y, label=data_type)
             elif self.c_type == 'bar':
-                ax.bar(x, y[data_type], label=data_type)
+                ax.bar(x, y, label=data_type)
             elif self.c_type == 'geo':
-                tf = df[df['date'] >= df['date'].max()]
+                with sql.connect('./data/covid.db') as con:
+                    c = con.cursor()
+                    c.execute("SELECT sum(cases), sum(deaths), avg(incidence) FROM covid_germany WHERE date >= :timeframe AND region=:region", {
+                        'region': self.region if self.region == None else self.region,
+                        'timeframe': time.mktime((datetime.now() - pd.Timedelta(self.timeframe)).timetuple()),
+                        # 'data': self.data[0]
+                    })
+                    data = c.fetchall()[0]
 
-                # drop unwanted data
-                df_prep = tf.drop(['age_group', 'gender'], axis=1)
+                cases = data[0]
+                deaths = data[1]
+                incidence = data[2]
 
                 # load required shape files
-                if self.state == None:
+                if self.region == 'Bundesrepublik Deutschland':
                     geodf = gpd.read_file('./data/shapefiles_germany/shapefile_state')
 
-                    df_prep = df_prep.drop('county', axis=1)
+                    geodf['cases'] = cases
+                    geodf['deaths'] = deaths
+                    geodf['incidence'] = incidence
 
-                    aggregation_functions = {'state': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
-                    tf = df_prep.groupby(df_prep['state']).aggregate(aggregation_functions)
-
-                    geodf['cases'] = list(tf['cases'])
-                    geodf['deaths'] = list(tf['deaths'])
-                elif self.county == None:
+                elif self.region in vars.choices_state:
                     geodf = gpd.read_file('./data/shapefiles_germany/shapefile_county')
 
-                    # filter for state
-                    counties = df.loc[lambda df: df['state'] == self.state]
-                    geodf = geodf.loc[geodf['GEN'].isin(counties['county'].unique())].reset_index(drop=True)
+                    # TODO: add state to counties
+                    geodf = geodf.loc[geodf['state'] == region].reset_index(drop=True)
 
-                    aggregation_functions = {'county': 'first', 'cases': 'sum', 'deaths': 'sum', 'recovered': 'sum'}
-                    tf = counties.groupby(counties['county']).aggregate(aggregation_functions)
+                    cases = data[0]
+                    deaths = data[1]
+                    incidence = data[2]
 
-                    geodf['cases'] = list(tf['cases'])
-                    geodf['deaths'] = list(tf['deaths'])
+                else:
+                    raise Exception("Plotting a Chart for a single state is not possible.")
 
                 fig, ax = plt.subplots(1, 1)
 
@@ -129,9 +121,9 @@ class Chart:
                 break
 
         if self.c_type != 'geo':
-            plt.title(f'{self.content} over the last {self.timeframe} in {self.place}')
+            plt.title(f'{self.content} over the last {self.timeframe} in {self.region}')
         else:
-            plt.title(f'{self.content} in {self.place}')
+            plt.title(f'{self.content} in {self.region}')
         plt.tight_layout()
         if self.c_type != 'geo':
             plt.legend(loc=0, frameon=False)

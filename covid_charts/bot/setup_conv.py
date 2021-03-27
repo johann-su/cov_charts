@@ -26,48 +26,32 @@ def timeframe(update: Update, context: CallbackContext) -> str:
         context.user_data['chart'] = update.message.text
 
         update.message.reply_text(f"So you like {context.user_data['chart']} charts? Good choice!\n\nNext tell me what timeframe you want? Valid Formats are 1D, 1W, 1Y etc.")
-        return States.STATE
+        return States.REGION
     else:
         update.message.reply_text(f"Please select one of the options below")
         return States.CHART_TYPE
 
-def state(update: Update, context: CallbackContext) -> str:
+def region(update: Update, context: CallbackContext) -> str:
     regex = r'[0-9][0-9]?(D|W|M|Y)'
     # set data from prev step
     if re.match(regex, update.message.text):
         context.user_data['tf'] = update.message.text
 
-        update.message.reply_text(f"Now tell me in which state you live. I won't tell anyone. Promise :) \n If you want to look at the whole country just type Germany.")
-        return States.COUNTY
+        update.message.reply_text(f"Now tell me in which area you want to see")
+        return States.DATA
     else:
         update.message.reply_text(f"Nah you cant fool me by sending your timeframe in the wrong format. Try again!")
         return States.TIMEFRAME
 
-def county(update: Update, context: CallbackContext) -> str:
-    if update.message.text in choices_state:
-        if update.message.text != 'Germany':
-            context.user_data['state'] = update.message.text
-        else:
-            context.user_data['state'] = None
-
-        update.message.reply_text(f"If you want to focus on a county you can do so. Just type in your county in the following format: SK Dresden, LK Bautzen etc. You can also skip with the /skip command")
-        return States.DATA
-    else:
-        update.message.reply_text(f"The state you said you live in dosn't exist anywhere in Germany. You can't trick me.\nTry again!")
-        return States.STATE
-
 def data(update: Update, context: CallbackContext) -> str:
-    if update.message.text in choices_county or update.message.text == '/skip':
-        if update.message.text != '/skip':
-            context.user_data['county'] = update.message.text
-        else:
-            context.user_data['county'] = None
+    if update.message.text in choices_county or update.message.text in choices_State or update.message.text == 'Bundesrepublik Deutschland':
+        context.user_data['region'] = update.message.text
 
         update.message.reply_text(f"Last Question: What data do you want to see? I can offer **cases**, **deaths** or the seven day **incidence**. If you want to see multiple data points you can seperate them with a ','")
         return States.FINISHED
     else:
-        update.message.reply_text(f"The county you told me dosn't exist anywhere in Germany. You can't trick me.\nTry again!")
-        return States.COUNTY
+        update.message.reply_text(f"The region you told me dosn't exist anywhere in Germany.\nTry again!")
+        return States.REGION
 
 def finished(update: Update, context: CallbackContext) -> None:
     regex=r'(cases|deaths|incidence),?(cases|deaths|incidence)?,?(cases|deaths|incidence)?'

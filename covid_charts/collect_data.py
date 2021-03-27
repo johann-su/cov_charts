@@ -7,79 +7,77 @@ import json
 import pandas as pd
 from datetime import datetime
 
-from database.sql_lite import insert_data
+from hashlib import sha1
+
+from data.sql_lite import insert_data
 
 LOGGER = logging.getLogger(__name__)
 
-# getting historical data from the rki
-current_data = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_key_data_hubv/FeatureServer/0/query?where=1%3D1&outFields=AdmUnitId,BundeslandId,AnzFall,AnzTodesfall,AnzFallNeu,AnzTodesfallNeu,AnzGenesen,AnzGenesenNeu,AnzAktiv,AnzAktivNeu,Inz7T&outSR=4326&f=json').text
+def convert_id_to_text(df):
+    rki_lookup = pd.read_csv('./data/rki_lookup.csv')
 
-historical_data = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_history_hubv/FeatureServer/0/query?where=1%3D1&outFields=AdmUnitId,BundeslandId,Datum,AnzFallNeu,AnzFallVortag,AnzFallErkrankung,AnzFallMeldung,KumFall&outSR=4326&f=json').text
+    for i, row in df.iterrows():
+        county = rki_lookup.loc[rki_lookup['AdmUnitId'] == row['AdmUnitId']]['Name'].values[0]
+        state = rki_lookup.loc[rki_lookup['AdmUnitId'] == row['BundeslandId']]['Name'].values[0]
+        df.loc[i, 'AdmUnitId'] = county
+        df.loc[i, 'BundeslandId'] = state
 
-data_status = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_data_status_v/FeatureServer/0/query?where=1%3D1&outFields=Datum,Timestamp_txt,Status&outSR=4326&f=json').text
+    return df
 
-current_data = json.loads(current_data)
-historical_data = json.loads(historical_data)
-data_status = json.loads(data_status)
+def fetch_data(historical=False):
+    # getting historical data from the rki
+    current_data = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_key_data_hubv/FeatureServer/0/query?where=1%3D1&outFields=AdmUnitId,BundeslandId,AnzFall,AnzTodesfall,AnzFallNeu,AnzTodesfallNeu,AnzGenesen,AnzGenesenNeu,AnzAktiv,AnzAktivNeu,Inz7T&outSR=4326&f=json').text
 
-data_status_df = pd.DataFrame(columns=['Datum', 'Timestamp_txt', 'Status'])
+    data_status = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_data_status_v/FeatureServer/0/query?where=1%3D1&outFields=Datum,Timestamp_txt,Status&outSR=4326&f=json').text
 
-for i in data_status['features']:
-    data_status_df = data_status_df.append(i['attributes'], ignore_index=True)
+    current_data = json.loads(current_data)
+    data_status = json.loads(data_status)
 
-if data_status_df['Status'].values[0] != 'OK':
-    raise Exception(f"Data from RKI is somehow not Ok! - status: {data_status_df['Status']}")
+    if historical == True:
+        historical_data = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_history_hubv/FeatureServer/0/query?where=1%3D1&outFields=AdmUnitId,BundeslandId,Datum,AnzFallNeu,AnzFallVortag,AnzFallErkrankung,AnzFallMeldung,KumFall&outSR=4326&f=json').text
 
-# constructiing a pandas dataframe with historical data
-current_df = pd.DataFrame(columns=['AdmUnitId', 'BundeslandId', 'AnzFall', 'AnzTodesfall', 'AnzFallNeu', 'AnzTodesfallNeu', 'AnzFall7T', 'AnzGenesen', 'AnzGenesenNeu', 'AnzAktiv', 'AnzAktivNeu', 'Inz7T'])
+        historical_data = json.loads(historical_data)
 
-for i in current_data['features']:
-    current_df = current_df.append(i['attributes'], ignore_index=True)
+        return (data_status, current_data, historical_data)
+    else:
+        return (data_status, current_data)
 
-# replacing 'AdmUnitId' and 'BundeslandId' with names
-rki_lookup = pd.read_csv('./data/rki_lookup.csv')
+def prepare_data(data):
+    df = pd.DataFrame()
 
-for i, row in current_df.iterrows():
-    county = rki_lookup.loc[rki_lookup['AdmUnitId'] == row[0]]['Name'].values[0]
-    state = rki_lookup.loc[rki_lookup['AdmUnitId'] == row[1]]['Name'].values[0]
-    current_df.loc[i, 'AdmUnitId'] = county
-    current_df.loc[i, 'BundeslandId'] = state
-    
-    data = {
-        'date': time.mktime(datetime.strptime(data_status_df['Timestamp_txt'].values[0][:17], "%d.%m.%Y, %H:%M").timetuple()),
-        'state': row['BundeslandId'],
-        'county': row['AdmUnitId'],
-        'infections_new': row['AnzFallNeu'],
-        'infections_acu': row['AnzFall'],
-        'deaths_new': row['AnzTodesfallNeu'],
-        'deaths_acu': row['AnzTodesfall'],
-        'active_new': row['AnzAktivNeu'],
-        'active_acu': row['AnzAktiv'],
-        'incidence': row['Inz7T']
-    }
-    insert_data(data)
+    for i in data['features']:
+        df = df.append(i['attributes'], ignore_index=True)
 
-df_historical = pd.DataFrame(columns=['AdmUnitId', 'BundeslandId', 'Datum', 'AnzFallNeu', 'AnzFallVortag', 'AnzFallErkrankung', 'AnzFallMeldung', 'KumFall'])
+    df = convert_id_to_text(df)
 
-for i in historical_data['features']:
-    df_historical = df_historical.append(i['attributes'], ignore_index=True)
+    return df
 
-for i, row in df_historical.iterrows():
-    county = rki_lookup.loc[rki_lookup['AdmUnitId'] == row[0]]['Name'].values[0]
-    state = rki_lookup.loc[rki_lookup['AdmUnitId'] == row[1]]['Name'].values[0]
-    df_historical.loc[i, 'AdmUnitId'] = county
-    df_historical.loc[i, 'BundeslandId'] = state
-    
-    data = {
-        'date': row['Datum'],
-        'state': row['BundeslandId'],
-        'county': row['AdmUnitId'],
-        'infections_new': row['AnzFallNeu'],
-        'infections_acu': row['KumFall'],
-        'deaths_new': None,
-        'deaths_acu': None,
-        'active_new': None,
-        'active_acu': None,
-        'incidence': None
-    }
-    insert_data(data)
+def collect():
+    data = fetch_data(historical=True)
+
+    status = data[0]['features'][0]['attributes']
+
+    if status['Status'] != 'OK':
+        raise Exception(f"The data from the RKI has some kind of fault. Api-Message: {status['Status']}")
+
+    for item in data[1:]:
+        df = prepare_data(item)
+
+        # TODO: Check if dataframe is not empty
+        for i, row in df.iterrows():
+            data = {
+                'date': row.get('Datum') / 1000 if row.get('Datum') != None else status['Datum'] / 1000,
+                'region': row.get('AdmUnitId'),
+                'cases': row.get('AnzFall') if row.get('AnzFall') != None else row.get('KumFall'),
+                'cases_new': row.get('AnzFallNeu'),
+                'deaths': row.get('AnzTodesfall'),
+                'deaths_new': row.get('AnzTodesfallNeu'),
+                'recovered': row.get('AnzGenesen'),
+                'recovered_new': row.get('AnzGenesenNeu'),
+                'incidence': row.get('Inz7T')
+            }
+
+            unique_key = sha1(str(data.values()).encode('utf-8')).hexdigest() 
+            data.update({'hash': unique_key})
+            
+            insert_data(data)

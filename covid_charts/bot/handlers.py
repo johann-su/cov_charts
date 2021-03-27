@@ -18,11 +18,7 @@ setup_handler = ConversationHandler(
     states={
         States.CHART_TYPE: [MessageHandler(Filters.text, setup_conv.chart_type)],
         States.TF: [MessageHandler(Filters.text, setup_conv.timeframe)],
-        States.STATE: [MessageHandler(Filters.text, setup_conv.state)],
-        States.COUNTY: [
-            MessageHandler(Filters.text, setup_conv.county),
-            CommandHandler('skip', setup_conv.skip_county),
-        ],
+        States.REGION: [MessageHandler(Filters.text, setup_conv.region)],
         States.DATA: [MessageHandler(Filters.text, setup_conv.data)],
         States.FINISHED: [MessageHandler(Filters.text, setup_conv.finished)],
     },
@@ -32,7 +28,6 @@ setup_handler = ConversationHandler(
     per_message=False,
     per_user=True,
     conversation_timeout=120.0,
-
 )
 
 # asks the user what chart to show
@@ -46,8 +41,7 @@ def chart(update: Update, context: CallbackContext) -> None:
             data = [context.user_data['data']], 
             timeframe = context.user_data['tf'], 
             c_type = context.user_data['chart'], 
-            state = context.user_data['state'], 
-            county = context.user_data['county'])
+            region = context.user_data['region'])
 
         path = chart.plot()
         context.bot.send_photo(update.effective_chat.id, open(path,'rb'))
@@ -79,7 +73,7 @@ def chart_answer(update: Update, context: CallbackContext) -> None:
         data = ['cases'], 
         timeframe = '3W', 
         c_type = update.callback_query.data,
-        state = 'Sachsen')
+        region = 'Sachsen')
     
     path = chart.plot()
     context.bot.send_photo(update.effective_chat.id, open(path,'rb'))
