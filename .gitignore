@@ -1,7 +1,7 @@
 # File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
 
-# Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,macos,python
-# Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,macos,python
+# Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,macos,vscode
+# Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,python,macos,vscode
 
 ### macOS ###
 # General
@@ -49,8 +49,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -128,6 +126,9 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
+# poetry
+#poetry.lock
+
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 
@@ -139,8 +140,9 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+# .env
 .env
-.venv
+.venv/
 env/
 venv/
 ENV/
@@ -169,11 +171,16 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+# operating system-related files
+*.DS_Store #file properties cache/storage on macOS
+Thumbs.db #thumbnail cache on Windows
+
 # profiling data
 .prof
 
+
 ### VisualStudioCode ###
-.vscode/*
+.vscode
 !.vscode/tasks.json
 !.vscode/launch.json
 *.code-workspace
@@ -183,7 +190,11 @@ dmypy.json
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,macos,python
+### vscode ###
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,macos,vscode
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 

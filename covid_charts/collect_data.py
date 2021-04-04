@@ -1,69 +1,107 @@
 import logging
 import os
+import time
 
 import requests
 import json
 import pandas as pd
 from datetime import datetime
 
+from data.sql_lite import insert_data
+from hashlib import sha1
+
+from tqdm import tqdm
+
 LOGGER = logging.getLogger(__name__)
 
-def collect():
-    # load current dataframe
-    df = pd.read_csv('./data/covid_de.csv')
+rki_lookup = pd.read_csv('./data/rki_lookup.csv')
 
-    # load new data from rki
-    rki_data = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_altersgruppen_hubv/FeatureServer/0/query?where=1%3D1&outFields=AdmUnitId,BundeslandId,Altersgruppe,AnzFallM,AnzFallW,AnzTodesfallM,AnzTodesfallW,ObjectId&outSR=4326&f=json').text
+def convert_id_to_text(data):
+    data['AdmUnitId'] = rki_lookup.loc[rki_lookup['AdmUnitId'] ==
+                                       data['AdmUnitId']]['Name'].values[0].replace('LK ', '').replace('SK ', '')
+    return data
 
-    rki_data = json.loads(rki_data)
-    date = datetime.now().date()
+def fetch_data(historical=False):
+    # getting historical data from the rki
+    current_data = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_key_data_hubv/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=json').text
 
-    rki_data_df = pd.DataFrame(columns=['AdmUnitId', 'BundeslandId', 'Altersgruppe', 'AnzFallM', 'AnzFallW', 'AnzTodesfallM', 'AnzTodesfallW', 'ObjectId'])
+    data_status = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_data_status_v/FeatureServer/0/query?where=1%3D1&outFields=Datum,Timestamp_txt,Status&outSR=4326&f=json').text
 
-    for i in rki_data['features']:
-        rki_data_df = rki_data_df.append(i['attributes'], ignore_index=True)
+    current_data = json.loads(current_data)
+    data_status = json.loads(data_status)
 
-    # loading lookup table for RKI AdmUnitIds
-    if not os.path.isfile('./data/rki_lookup.csv'):
-        rki_lookup = requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/ArcGIS/rest/services/rki_admunit_v/FeatureServer/0/query?where=1%3D1&outFields=AdmUnitId,Name&f=json').text
+    # TODO: find better way to fetch historical data (API restriction to 1000 items)
+    if historical == True:
+        i = 0
+        max_records = json.loads(requests.get('https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_history_hubv/FeatureServer/0/query?where=1%3D1&f=json&outFields=*&returnCountOnly=true').text)['count']
+        historical_data = None
 
-        rki_lookup = json.loads(rki_lookup)
+        while i <= max_records:
+            historical_data_txt = requests.get(f'https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/rki_history_hubv/FeatureServer/0/query?where=1%3D1&f=json&outFields=*&resultOffset={i}').text
 
-        rki_lookup_df = pd.DataFrame(columns=['AdmUnitId', 'Name'])
+            if i == 0:
+                historical_data = json.loads(historical_data_txt)
+            else:
+                historical_data_list = json.loads(historical_data_txt)['features']
+                historical_data['features'] = historical_data['features'] + historical_data_list
 
-        for i in rki_lookup['features']:
-            rki_lookup_df = rki_lookup_df.append(i['attributes'], ignore_index=True)
+            i += 1000
 
-        rki_lookup_df.to_csv('./data/rki_lookup.csv', index=False)
+        return (data_status, current_data, historical_data)
     else:
-        rki_lookup_df = pd.read_csv('./data/rki_lookup.csv')
+        return (data_status, current_data)
 
-    for i, row in rki_data_df.iterrows():
-        # print(rki_lookup_df.loc[rki_lookup_df['AdmUnitId'] == rki_data_df['AdmUnitId'][i]]['Name'].values[0])
+def prepare_data(data, status):
+    df = pd.DataFrame([i['attributes'] for i in data['features']])
 
-        F = {
-            'state': rki_lookup_df.loc[rki_lookup_df['AdmUnitId'] == rki_data_df['BundeslandId'][i]]['Name'].values[0],
-            'county': rki_lookup_df.loc[rki_lookup_df['AdmUnitId'] == rki_data_df['AdmUnitId'][i]]['Name'].values[0],
-            'age_group': rki_data_df['Altersgruppe'][i].replace('A', ''),
-            'gender': 'F',
-            'date': date,
-            'cases': rki_data_df['AnzFallW'][i],
-            'deaths': rki_data_df['AnzTodesfallW'][i],
-            'recovered': 0,
-            # 'incidence': incidence()
-        }
-        M = {
-            'state': rki_lookup_df.loc[rki_lookup_df['AdmUnitId'] == rki_data_df['BundeslandId'][i]]['Name'].values[0],
-            'county': rki_lookup_df.loc[rki_lookup_df['AdmUnitId'] == rki_data_df['AdmUnitId'][i]]['Name'].values[0],
-            'age_group': rki_data_df['Altersgruppe'][i].replace('A', ''),
-            'gender': 'M',
-            'date': date,
-            'cases': rki_data_df['AnzFallM'][i],
-            'deaths': rki_data_df['AnzTodesfallM'][i],
-            'recovered': 0,
-            # 'incidence': incidence()
-        }
+    df = df.apply(convert_id_to_text, axis=1)
+    # hash, date, region, cases, cases_new, deaths, deaths_new, recovered, recovered_new, incidence
+    if df.loc[0].get('Datum') == None:
+        df = df.drop(columns=['BundeslandId', 'AnzFall7T', 'ObjectId'])
 
-        df = df.append([F,M], ignore_index=True)
+        df.rename(columns={
+            'AdmUnitId': 'region', 
+            'AnzFall': 'cases', 
+            'AnzTodesfall': 'deaths', 
+            'AnzFallNeu': 'cases_new', 
+            'AnzTodesfallNeu': 'deaths_new',
+            'AnzGenesen': 'recovered', 
+            'AnzGenesenNeu': 'recovered_new', 
+            'AnzAktiv': 'active', 
+            'AnzAktivNeu': 'active_new', 
+            'Inz7T': 'incidence'
+        }, inplace=True)
 
-    df.to_csv('./data/covid_de.csv')
+        df['date'] = status['Datum'] / 1000
+    else:
+        df.drop(columns=['BundeslandId', 'AnzFallVortag',
+                'AnzFallErkrankung', 'AnzFallMeldung', 'ObjectId'])
+
+        df.rename(columns={
+            'AdmUnitId': 'region',
+            'Datum': 'date',
+            'AnzFallNeu': 'cases_new',
+            'KumFall': 'cases'
+        }, inplace=True)
+
+        df['date'] = df['date'].apply(lambda x: x / 1000)
+
+        df['deaths'], df['deaths_new'], df['recovered'], df['recovered_new'], df['active'], df['active_new'], df['incidence'] = [None for i in range(7)]
+
+    df['hash'] = df.apply(
+        lambda x: sha1(f"{x['date']}{x['region']}".encode('utf-8')).hexdigest(), axis=1)
+
+    return df
+
+def collect(historical=False):
+    data = fetch_data(historical=historical)
+
+    status = data[0]['features'][0]['attributes']
+
+    if status['Status'] != 'OK':
+        raise Exception(f"The Data from the RKI-API returned: {status['Status']}")
+
+    for item in data[1:]:
+        df = prepare_data(item, status)
+
+        df.apply(insert_data, axis=1)
