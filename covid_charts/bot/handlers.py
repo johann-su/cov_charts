@@ -100,9 +100,12 @@ def status(update: Update, context: CallbackContext) -> None:
 
 def news(update: Update, context: CallbackContext) -> None:
     zeit = collect_news.get_articles()
-    print(zeit)
 
-    update.message.reply_text(f'Hier sind ein paar interessante Artikel aus der Zeit zu Covid:\n')
+    update.message.reply_text(
+        f"""Hier sind ein paar interessante Artikel aus der Zeit zu Covid:
+        \n{zeit[0]['title']}\n{zeit[0]['subtitle']}\nLink {zeit[0]['href']}
+        \n\n{zeit[1]['title']}\n{zeit[1]['subtitle']}\nLink {zeit[1]['href']}
+        \n\n{zeit[2]['title']}\n{zeit[2]['subtitle']}\nLink {zeit[2]['href']}""")
 
 def start(update, context):
     context.bot.send_message(chat_id=update.message.chat_id,
