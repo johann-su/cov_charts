@@ -11,7 +11,7 @@ from covid_charts.bot import bot
 from covid_charts.charts import Chart
 from covid_charts.exceptions import DataException
 
-import tweepy
+from covid_charts import collect_news
 
 setup_handler = ConversationHandler(
     name='setup_handler',
@@ -102,16 +102,13 @@ def status(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(f"New infections in Germany: {germany['cases'].values[0]}\nNew infections in Saxony: {state.loc[state.index=='Sachsen']['cases'].values[0]}") 
 
 def news(update: Update, context: CallbackContext) -> None:
-    auth = tweepy.OAuthHandler(os.getenv('TWITTER_KEY'), os.getenv('TWITTER_SECRET'))
-    auth.set_access_token(os.getenv('TWITTER_AT'), os.getenv('TWITTER_ATS'))
+    zeit = collect_news.get_articles()
 
-    api = tweepy.API(auth)
-
-    public_tweets = api.user_timeline('@rki_de', count=10)
-
-    id = random.randint(0, 10)
-
-    update.message.reply_text(f'Twitter sagt:\n{public_tweets[id].text}\n\nhttps://twitter.com/{public_tweets[id].user.screen_name}/status/{public_tweets[id].id}')
+    update.message.reply_text(
+        f"""Hier sind ein paar interessante Artikel aus der Zeit zu Covid:
+        \n{zeit[0]['title']}\n{zeit[0]['subtitle']}\nLink {zeit[0]['href']}
+        \n\n{zeit[1]['title']}\n{zeit[1]['subtitle']}\nLink {zeit[1]['href']}
+        \n\n{zeit[2]['title']}\n{zeit[2]['subtitle']}\nLink {zeit[2]['href']}""")
 
 def start(update, context):
     context.bot.send_message(chat_id=update.message.chat_id,
