@@ -11,3 +11,5 @@ python-telegram-bot
 python-dotenv
 tweepy
 schedule
+hashlib
+tqdm
