@@ -21,12 +21,15 @@ with con:
         deaths_new INTEGER,
         recovered INTEGER,
         recovered_new INTEGER,
+        active INTEGER,
+        active_new INTEGER,
         incidence REAL
     )""")
 
+
 def insert_data(data):
     with con:
-        c.execute("""INSERT OR IGNORE INTO covid_germany VALUES (:hash, :date, :region, :cases, :cases_new, :deaths, :deaths_new, :recovered, :recovered_new, :incidence)
+        c.execute("""INSERT OR IGNORE INTO covid_germany VALUES (:hash, :date, :region, :cases, :cases_new, :deaths, :deaths_new, :recovered, :recovered_new, :active, :active_new, :incidence)
         """, {
             'hash': data['hash'],
             'date': data['date'],
@@ -37,5 +40,7 @@ def insert_data(data):
             'deaths_new': data['deaths_new'],
             'recovered': data['recovered'],
             'recovered_new': data['deaths_new'],
+            'active': data['active'],
+            'active_new': data['active_new'],
             'incidence': data['incidence']
         })

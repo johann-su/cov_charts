@@ -1,7 +1,6 @@
 # sudo apt-get update
 sudo apt-get install gdal-bin libgdal-dev libatlas-base-dev cmake make -y
 
-sudo apt-get install sqlite3
 mkdir ../tmp
 cd ../tmp
 wget https://download.osgeo.org/proj/proj-8.0.0.tar.gz
@@ -30,4 +29,4 @@ cd ./cov_charts
 
 pip install -r requirements.txt
 
-# touch .env
+echo "TELEGRAM_TOKEN=''\nTWITTER_KEY=''\nTWITTER_SECRET=''\nTWITTER_AT=''\nTWITTER_ATS=''\nZEIT_API_KEY=''\n" > ./.env
