@@ -127,34 +127,45 @@ class Chart:
                 geodf.loc[0, 'deaths'] = query_data[0][1]
                 geodf.loc[0, 'incidence'] = query_data[0][2]
 
-            print(geodf)
             return geodf
 
     def plot(self):
         # TODO: Fix subplots for geo chart
         # creating plots for every data-instance
-        fig, ax = plt.subplots()
+        if self.c_type != 'geo':
+            fig, ax = plt.subplots()
+        else:
+            fig, ax = plt.subplots(nrows=1, ncols=len(self.data))
         for i, data_type in enumerate(self.data):
             # choosing the type of chart
             if self.c_type == 'line':
                 x, y = self.get_data(data_type=i)
                 ax.plot(x, y, label=data_type)
+
+                ax.set_title(
+                    f'{self.content} over the last {self.timeframe} in {self.region}')
+                ax.legend(loc=0, frameon=False)
             elif self.c_type == 'bar':
                 x, y = self.get_data(data_type=i)
                 ax.bar(x, y, label=data_type)
+
+                ax.set_title(
+                    f'{self.content} over the last {self.timeframe} in {self.region}')
+                ax.legend(loc=0, frameon=False)
             elif self.c_type == 'geo':
-                fig, ax = plt.subplots()
-
                 geodf = self.get_data(data_type=i)
-                # plot the shapefile
-                geodf.plot(edgecolor='black', cmap='OrRd', column=data_type, ax=ax, legend=True, missing_kwds={"color": "lightgrey", "edgecolor": "black", "hatch": "///", "label": "Missing values"})
 
-        if self.c_type != 'geo':
-            plt.title(f'{self.content} over the last {self.timeframe} in {self.region}')
-            plt.legend(loc=0, frameon=False)
-        else:
-            plt.axis('off')
-            plt.title(f'{self.content} in {self.region}')
+                # plot the shapefile
+                if len(self.data) == 1:
+                    geodf.plot(edgecolor='black', cmap='OrRd', column=data_type, ax=ax, legend=True, missing_kwds={"color": "lightgrey", "edgecolor": "black", "hatch": "///", "label": "Missing values"})
+
+                    ax.set_title(f'{self.data[i]} in {self.region}')
+                else:
+                    geodf.plot(edgecolor='black', cmap='OrRd', column=data_type, ax=ax[i], legend=True, missing_kwds={
+                               "color": "lightgrey", "edgecolor": "black", "hatch": "///", "label": "Missing values"})
+
+                    ax[i].set_title(f'{self.data[i]} in {self.region}')
+
         plt.tight_layout()
         plt.savefig(self.image)
         # return the path to the image

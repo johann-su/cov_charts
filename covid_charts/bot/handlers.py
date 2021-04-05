@@ -45,7 +45,7 @@ def chart(update: Update, context: CallbackContext) -> None:
             )
 
             chart=Chart(
-                data = [context.user_data['data']], 
+                data = context.user_data['data'], 
                 timeframe = context.user_data['tf'], 
                 c_type = context.user_data['chart'], 
                 region = context.user_data['region'])

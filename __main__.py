@@ -20,8 +20,6 @@ locale.setlocale(locale.LC_ALL, 'de_DE.utf-8')
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s\n', level=logging.INFO, filename='./logs/logFile.log')
 
 if __name__ == '__main__':
-    chart = Chart(data=['cases'], timeframe='1W', c_type='geo', region='Dresden')
-    chart.plot()
-    # token = os.getenv('TELEGRAM_TOKEN')
-    # bot.run(token=token, handlers=handlers)
-    # schedule.every().day.at("00:00").do(collect_data.collect)
+    token = os.getenv('TELEGRAM_TOKEN')
+    bot.run(token=token, handlers=handlers)
+    schedule.every().day.at("00:00").do(collect_data.collect)
