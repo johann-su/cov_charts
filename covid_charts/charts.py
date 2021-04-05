@@ -15,7 +15,7 @@ import time
 
 from covid_charts.exceptions import DataException
 
-from covid_charts.vars import ARS, choices_state
+from covid_charts.vars import ARS, choices_state, choices_county
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,14 +79,21 @@ class Chart:
 
             return (x, y)
         else:
-            # TODO: check if not county
+            regions = ()
+            if self.region in choices_county:
+                regions = f"('{self.region}')"
+            elif self.region != 'Bundesrepublik Deutschland':
+                regions = tuple(ARS[self.region])
+            elif self.region in choices_state:
+                regions = tuple(choices_state)
+
             with sql.connect('./data/covid.db') as con:
                 c = con.cursor()
                 # BAD PRACTICE: SUSEPTABLE TO SQL INJECTION (string formating)
                 c.execute(f"""SELECT cases, deaths, incidence, region 
                 FROM covid_germany 
-                WHERE region IN {tuple(ARS[self.region]) if self.region != 'Bundesrepublik Deutschland' else tuple(choices_state)} 
-                AND date=(SELECT MAX(date) from covid_germany WHERE region IN {tuple(ARS[self.region]) if self.region != 'Bundesrepublik Deutschland' else tuple(choices_state)})""") 
+                WHERE region IN {regions} 
+                AND date=(SELECT MAX(date) from covid_germany WHERE region IN {regions})""")
                 query_data = c.fetchall()
 
             # load required shape files
@@ -111,8 +118,16 @@ class Chart:
                     geodf.loc[row.index, 'incidence'] = i[2]
     
             else:
-                raise Exception("Plotting a geo chart for a single state is not possible.")
+                geodf = gpd.read_file(
+                     './data/shapefiles_germany/shapefile_county')
 
+                geodf = geodf.loc[geodf['GEN'] == self.region].reset_index(drop=True)
+
+                geodf.loc[0, 'cases'] = query_data[0][0]
+                geodf.loc[0, 'deaths'] = query_data[0][1]
+                geodf.loc[0, 'incidence'] = query_data[0][2]
+
+            print(geodf)
             return geodf
 
     def plot(self):
@@ -128,9 +143,9 @@ class Chart:
                 x, y = self.get_data(data_type=i)
                 ax.bar(x, y, label=data_type)
             elif self.c_type == 'geo':
-                fig, ax = plt.subplots(data_type=i)
+                fig, ax = plt.subplots()
 
-                geodf = self.get_data()
+                geodf = self.get_data(data_type=i)
                 # plot the shapefile
                 geodf.plot(edgecolor='black', cmap='OrRd', column=data_type, ax=ax, legend=True, missing_kwds={"color": "lightgrey", "edgecolor": "black", "hatch": "///", "label": "Missing values"})
 
