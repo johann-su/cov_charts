@@ -1,3 +1,4 @@
+import locale
 import logging
 import os
 import atexit
@@ -12,6 +13,9 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from covid_charts.charts import Chart
+
+import locale
+locale.setlocale(locale.LC_ALL, 'de_DE.utf-8')
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s\n', level=logging.INFO, filename='./logs/logFile.log')
 
