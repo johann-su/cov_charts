@@ -2,10 +2,11 @@ import os
 import random
 import time
 import pandas as pd
-from datetime import datetime
+import datetime
+import pytz
 
-from telegram import Chat, Update, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler, CallbackContext
+from telegram import Chat, Update, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Bot
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler, CallbackContext, Job
 
 from covid_charts.bot.state import States
 from covid_charts.bot import setup_conv
@@ -101,14 +102,32 @@ def status(update: Update, context: CallbackContext) -> None:
     with sql.connect('./data/covid.db') as con:
         c = con.cursor()
         brd = c.execute("SELECT cases, cases_new FROM covid_germany WHERE date >= :timeframe AND region = 'Bundesrepublik Deutschland'", {
-            'timeframe': time.mktime((datetime.now() - pd.Timedelta('1D')).timetuple())
+            'timeframe': time.mktime((datetime.datetime.now() - pd.Timedelta('1D')).timetuple())
         }).fetchone()
         sachsen = c.execute("SELECT cases, cases_new, incidence FROM covid_germany WHERE date >= :timeframe AND region = 'Sachsen'", {
-            'timeframe': time.mktime((datetime.now() - pd.Timedelta('1D')).timetuple())
+            'timeframe': time.mktime((datetime.datetime.now() - pd.Timedelta('1D')).timetuple())
         }).fetchone()
 
-    update.message.reply_text(
-        f"Infektionen in Deutschland: {brd[0]:n}\nNeue Infektionen in Deutschland: {brd[1]:n}\n\nInfektionen in Sachsen: {sachsen[0]:n}\nNeue Infektionen in Sachsen: {sachsen[1]:n}\nSieben Tage Inzidenz in Sachsen: {sachsen[2]:n}")
+    context.bot.send_message(
+        update.message.chat.id, text=f"Infektionen in Deutschland: {brd[0]:,}\nNeue Infektionen in Deutschland: {brd[1]:,}\n\nInfektionen in Sachsen: {sachsen[0]:,}\nNeue Infektionen in Sachsen: {sachsen[1]:n}\nSieben Tage Inzidenz in Sachsen: {sachsen[2]:,}")
+
+
+def auto_status(context: CallbackContext) -> None:
+    with sql.connect('./data/covid.db') as con:
+        c = con.cursor()
+        brd = c.execute("SELECT cases, cases_new FROM covid_germany WHERE date >= :timeframe AND region = 'Bundesrepublik Deutschland'", {
+            'timeframe': time.mktime((datetime.datetime.now() - pd.Timedelta('1D')).timetuple())
+        }).fetchone()
+        sachsen = c.execute("SELECT cases, cases_new, incidence FROM covid_germany WHERE date >= :timeframe AND region = 'Sachsen'", {
+            'timeframe': time.mktime((datetime.datetime.now() - pd.Timedelta('1D')).timetuple())
+        }).fetchone()
+    
+    print(time.mktime((datetime.datetime.now() - pd.Timedelta('1D')).timetuple()))
+    print(brd)
+    print(sachsen)
+
+    context.bot.send_message(
+        context.job.context, text=f"Infektionen in Deutschland: {brd[0]:,}\nNeue Infektionen in Deutschland: {brd[1]:,}\n\nInfektionen in Sachsen: {sachsen[0]:,}\nNeue Infektionen in Sachsen: {sachsen[1]:n}\nSieben Tage Inzidenz in Sachsen: {sachsen[2]:,}")
 
 def news(update: Update, context: CallbackContext) -> None:
     if is_sender_admin(update.message, context.bot):
@@ -127,11 +146,14 @@ def start(update, context):
     if is_sender_admin(update.message, context.bot):
         context.bot.send_message(chat_id=update.message.chat_id,
                     text='Automatic updates have been enabled.')
+
+        timezone = pytz.timezone('Europe/Berlin')
+
+        context.job_queue.run_daily(auto_status, time=datetime.time(
+            0, 40, 0, tzinfo=timezone), context=update.message.chat_id)
     else:
         update.message.reply_text(
             "Du bist nicht der Admin der Gruppe und kannst daher keine Commands an den Bot senden.\nDu kannst mich zu deinen Kontakten hinzufügen https://t.me/CovGermanyBot um alle Funktionen nutzen zu können")
-
-    context.job_queue.run_daily(status, time=datetime.time(15, 0, 0), context=update.message.chat_id, name='update')
 
 def stop(update, context):
     if is_sender_admin(update.message, context.bot):

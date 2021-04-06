@@ -65,14 +65,15 @@ def data(update: Update, context: CallbackContext) -> str:
         return States.REGION
 
 def finished(update: Update, context: CallbackContext) -> None:
-    regex=r'(cases|deaths),? ?(cases|deaths)?'
+    regex = r'(cases|deaths|incidence),? ?(cases|deaths|incidence)?'
     if re.match(regex, update.message.text):
         context.user_data['data'] = update.message.text.replace(' ', '').split(',')
 
         update.message.reply_text("Das war alles 👍. Ich merke mir deine Einstellungen, aber du kannst sie jederzeit mit /setup wieder ändern.")
         return States.END
     else:
-        update.message.reply_text("Huch 🤔\nDamit kann ich nichts anfangen\n\nZur Erinnerung: Die Daten können `cases` und `deaths` sein und müssen mit einem , getrennt werden")
+        update.message.reply_text(
+            "Huch 🤔\nDamit kann ich nichts anfangen\n\nZur Erinnerung: Die Daten können `cases`, `deaths` und `incidence` sein und müssen mit einem , getrennt werden")
         return States.DATA
 
 def cancel_setup(update: Update, context: CallbackContext) -> None:

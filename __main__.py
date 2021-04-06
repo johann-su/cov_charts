@@ -17,9 +17,14 @@ from covid_charts.charts import Chart
 import locale
 locale.setlocale(locale.LC_ALL, 'de_DE.utf-8')
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s\n', level=logging.INFO, filename='./logs/logFile.log')
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s\n', level=logging.INFO, filename='./logs/logFile.log')
 
 if __name__ == '__main__':
     token = os.getenv('TELEGRAM_TOKEN')
     bot.run(token=token, handlers=handlers)
     schedule.every().day.at("00:00").do(collect_data.collect)
+
+    while True:
+        schedule.run_pending()
+        sleep(1)

@@ -94,6 +94,7 @@ def prepare_data(data, status):
     return df
 
 def collect(historical=False):
+    print('COLLECTING DATA')
     data = fetch_data(historical=historical)
 
     status = data[0]['features'][0]['attributes']
