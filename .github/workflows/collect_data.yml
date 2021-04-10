@@ -16,3 +16,6 @@ jobs:
           python-version: 3.9
           architecture: x64
       - run: python -c 'from covid_charts import collect_data; print collect_data.collect(historical=True)'
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Added latest data to database
