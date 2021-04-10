@@ -1,0 +1,18 @@
+name: Collect Data
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # every day at midnight
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Collect new data
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+          architecture: x64
+      - run: python -c 'from covid_charts import collect_data; print collect_data.collect(historical=True)'
