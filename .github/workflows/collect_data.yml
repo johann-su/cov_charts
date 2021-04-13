@@ -15,7 +15,10 @@ jobs:
         with:
           python-version: 3.9
           architecture: x64
-      - run: python -c 'from covid_charts import collect_data; print collect_data.collect(historical=True)'
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - run: pip install -r requirements.txt
+      - run: python -c 'from covid_charts import collect_data; collect_data.collect(historical=True)'
+      - uses: EndBug/add-and-commit@v7
         with:
-          commit_message: Added latest data to database
+          author_name: Github actions
+          branch: main
+          message: Added data for ${{ steps.date.outputs.date }}
