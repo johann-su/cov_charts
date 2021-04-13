@@ -36,10 +36,7 @@ class Chart:
     @property
     def content(self):
         if isinstance(self.data, list):
-            content=''
-            for d in self.data:
-                content = content + ' ' + d
-            return content
+            return ', '.join(self.data)
         else:
             return self.data
 
