@@ -12,4 +12,3 @@ python-dotenv
 tweepy
 schedule
 tqdm
-pytest

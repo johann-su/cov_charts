@@ -1,5 +1,0 @@
-# COVID CHARTS
-
-# TELEGRAM BOT
-
-# SQL
