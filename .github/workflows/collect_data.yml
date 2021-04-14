@@ -21,8 +21,10 @@ jobs:
           pip install -r requirements.txt
       - name: Collect data
         run: python -c 'from covid_charts import collect_data; collect_data.collect()'
+      - name: Set current date as env variable
+        run: echo "NOW::$(date +'%Y-%m-%d')" >> $GITHUB_ENV
       - uses: EndBug/add-and-commit@v7
         with:
           author_name: Github actions
           branch: main
-          message: Added data for ${{ steps.date.outputs.date }}
+          message: Added data for ${{ $NOW }} 
