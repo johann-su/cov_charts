@@ -27,4 +27,4 @@ jobs:
         with:
           author_name: Github actions
           branch: main
-          message: Added data for ${{ $NOW }} 
+          message: Added data for $NOW
